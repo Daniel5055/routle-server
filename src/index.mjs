@@ -28,19 +28,60 @@ app.use((req, res, next) => {
 io.on('connection', (socket) => {
   socket.on('join-game', (msg) => {
     const gameId = msg;
-    if (gameId in games) {
-      socket.join(gameId);
-      games[gameId].push(socket.id);
 
-      if (games[gameId].length === 1) {
-        io.to(gameId).emit('new-leader', socket.id);
-      }
+    if (!(gameId in games)) {
+      io.to(socket.id).emit('not-found', '');
     }
+
+    const game = games[gameId];
+
+    socket.join(gameId);
+    game.players.push({ id: socket.id, name: `Player ${game.nextPlayerId}` });
+
+    if (game.nextPlayerId === 1) {
+      io.to(gameId).emit('new-leader', socket.id);
+    }
+
+    game.nextPlayerId++;
+
+    io.to(gameId).emit('players', JSON.stringify(game.players));
+    console.log('new player joined', socket.id);
+
+    socket.on('disconnecting', () => {
+      if (!(gameId in games)) {
+        return;
+      }
+      const index = game.players.findIndex((player) => player.id === socket.id);
+      if (index === -1) {
+        return;
+      }
+
+      game.players.splice(index, 1);
+
+      if (game.players.length === 0) {
+        delete game[gameId];
+        return;
+      }
+
+      io.to(gameId).emit('players', JSON.stringify(game.players));
+
+      if (index === 0) {
+        console.log(games, gameId);
+        io.to(gameId).emit('new-leader', game.players[0].id);
+      }
+
+      console.log('Player left', socket.id);
+    });
   });
+
+  console.log('connected', socket.id);
 });
 
 app.post('/host-game', (req, res) => {
-  games[nextGameId] = [];
+  games[nextGameId] = {
+    players: [],
+    nextPlayerId: 1,
+  };
 
   const out = {
     id: nextGameId,
