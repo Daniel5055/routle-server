@@ -1,4 +1,9 @@
 {
+  "name": "routle-server",
+  "version": "0.1.0",
+  "scripts": {
+    "start": "node src/index.mjs"
+  },
   "dependencies": {
     "socket.io": "^4.5.4"
   },

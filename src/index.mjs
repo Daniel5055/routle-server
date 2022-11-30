@@ -9,8 +9,13 @@ const io = new Server(port, {
   },
 });
 
-io.on('connection', (server) => {
-  io.on('message', (msg) => {
+io.on('connection', (socket) => {
+  socket.on('message', (msg) => {
     console.log(msg);
   });
+
+  console.log('Connected');
 });
+
+console.log('Listening on port', port);
+
