@@ -45,11 +45,18 @@ io.on('connection', (socket) => {
     game.nextPlayerId++;
 
     io.to(gameId).emit('players', JSON.stringify(game.players));
+    io.to(gameId).emit('settings', JSON.stringify(game.settings));
     console.log('new player joined', socket.id);
 
     socket.on('change-name', (name) => {
       game.players.find((player) => player.id === socket.id).name = name;
       io.to(gameId).emit('players', JSON.stringify(game.players));
+    });
+
+    socket.on('change-settings', (msg) => {
+      const parsedSettings = JSON.parse(msg);
+      game.settings = parsedSettings;
+      io.to(gameId).emit('settings', JSON.stringify(game.settings));
     });
 
     socket.on('disconnecting', () => {
@@ -87,6 +94,10 @@ app.post('/host-game', (req, res) => {
   games[nextGameId] = {
     players: [],
     nextPlayerId: 1,
+    settings: {
+      map: 'europe',
+      difficulty: 'normal',
+    },
   };
 
   const out = {
