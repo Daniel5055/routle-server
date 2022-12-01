@@ -47,6 +47,11 @@ io.on('connection', (socket) => {
     io.to(gameId).emit('players', JSON.stringify(game.players));
     console.log('new player joined', socket.id);
 
+    socket.on('change-name', (name) => {
+      game.players.find((player) => player.id === socket.id).name = name;
+      io.to(gameId).emit('players', JSON.stringify(game.players));
+    });
+
     socket.on('disconnecting', () => {
       if (!(gameId in games)) {
         return;
@@ -58,6 +63,7 @@ io.on('connection', (socket) => {
 
       game.players.splice(index, 1);
 
+      console.log(game.players);
       if (game.players.length === 0) {
         delete game[gameId];
         return;
