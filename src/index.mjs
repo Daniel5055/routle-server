@@ -1,6 +1,8 @@
 import express from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
+import { getRandomCities } from './random.mjs';
+import { readFile } from 'fs/promises';
 
 const port = 23177;
 
@@ -29,6 +31,8 @@ io.on('connection', (socket) => {
   socket.on('join-game', (msg) => {
     const gameId = msg;
 
+    let randomCitiesPromise;
+
     if (!(gameId in games)) {
       io.to(socket.id).emit('state', 'invalid');
     }
@@ -36,7 +40,11 @@ io.on('connection', (socket) => {
     const game = games[gameId];
 
     socket.join(gameId);
-    game.players.push({ id: socket.id, name: `Player ${game.nextPlayerId}` });
+    game.players.push({
+      id: socket.id,
+      name: `Player ${game.nextPlayerId}`,
+      state: 'lobby',
+    });
 
     game.nextPlayerId++;
 
@@ -44,12 +52,32 @@ io.on('connection', (socket) => {
     io.to(socket.id).emit('settings', JSON.stringify(game.settings));
     io.to(socket.id).emit('state', 'lobby');
 
-    socket.on('state-ack', (state) => {
+    socket.on('state-ack', async (state) => {
       console.log(state, 'acknowledgement');
-      // TODO: Write acknowledgement for starting to confirm sync
       switch (state) {
         case 'lobby':
           io.to(socket.id).emit('new-leader', game.players[0].id);
+          break;
+
+        // When all players have had their maps revealed then send the cities
+        case 'reveal':
+          game.players.find((player) => player.id === socket.id).state =
+            'reveal';
+
+          // Once all players have revealed map
+          if (game.players.every((player) => player.state === 'reveal')) {
+            // FIXME: I shouldn't be handling this like this
+            if (randomCitiesPromise == null) {
+              console.error('Something went wrong');
+            }
+
+            const [start, end, cities] = await randomCitiesPromise;
+            io.to(gameId).emit(
+              'prompt-cities',
+              JSON.stringify({ start, end, cities })
+            );
+          }
+          break;
       }
     });
 
@@ -68,7 +96,15 @@ io.on('connection', (socket) => {
 
     socket.on('start-game', (msg) => {
       io.to(gameId).emit('state', 'starting');
-      setTimeout(() => {
+
+      // Fetch the
+      randomCitiesPromise = readFile('data/mapList.json')
+        .then((res) => JSON.parse(res.toString()))
+        .then((data) => data.find((m) => m.webPath === game.settings.map))
+        .then((map) => getRandomCities(map));
+
+      // Let the cities load and player get ready and then reveal with city targets
+      setTimeout(async () => {
         io.to(gameId).emit('state', 'reveal');
       }, 3000);
     });
@@ -111,6 +147,10 @@ app.post('/host-game', (req, res) => {
     settings: {
       map: 'europe',
       difficulty: 'normal',
+    },
+    data: {
+      start: null,
+      end: null,
     },
     state: 'start',
   };
