@@ -30,7 +30,7 @@ io.on('connection', (socket) => {
     const gameId = msg;
 
     if (!(gameId in games)) {
-      io.to(socket.id).emit('not-found', '');
+      io.to(socket.id).emit('state', 'invalid');
     }
 
     const game = games[gameId];
@@ -38,14 +38,21 @@ io.on('connection', (socket) => {
     socket.join(gameId);
     game.players.push({ id: socket.id, name: `Player ${game.nextPlayerId}` });
 
-    if (game.nextPlayerId === 1) {
-      io.to(gameId).emit('new-leader', socket.id);
-    }
-
     game.nextPlayerId++;
 
     io.to(gameId).emit('players', JSON.stringify(game.players));
-    io.to(gameId).emit('settings', JSON.stringify(game.settings));
+    io.to(socket.id).emit('settings', JSON.stringify(game.settings));
+    io.to(socket.id).emit('state', 'lobby');
+
+    socket.on('state-ack', (state) => {
+      console.log(state, 'acknowledgement');
+      // TODO: Write acknowledgement for starting to confirm sync
+      switch (state) {
+        case 'lobby':
+          io.to(socket.id).emit('new-leader', game.players[0].id);
+      }
+    });
+
     console.log('new player joined', socket.id);
 
     socket.on('change-name', (name) => {
@@ -57,6 +64,13 @@ io.on('connection', (socket) => {
       const parsedSettings = JSON.parse(msg);
       game.settings = parsedSettings;
       io.to(gameId).emit('settings', JSON.stringify(game.settings));
+    });
+
+    socket.on('start-game', (msg) => {
+      io.to(gameId).emit('state', 'starting');
+      setTimeout(() => {
+        io.to(gameId).emit('state', 'reveal');
+      }, 3000);
     });
 
     socket.on('disconnecting', () => {
@@ -98,6 +112,7 @@ app.post('/host-game', (req, res) => {
       map: 'europe',
       difficulty: 'normal',
     },
+    state: 'start',
   };
 
   const out = {
