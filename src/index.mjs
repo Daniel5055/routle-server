@@ -31,8 +31,6 @@ io.on('connection', (socket) => {
   socket.on('join-game', (msg) => {
     const gameId = msg;
 
-    let randomCitiesPromise;
-
     if (!(gameId in games)) {
       io.to(socket.id).emit('state', 'invalid');
     }
@@ -61,24 +59,44 @@ io.on('connection', (socket) => {
 
         // When all players have had their maps revealed then send the cities
         case 'reveal':
-          game.players.find((player) => player.id === socket.id).state =
-            'reveal';
+          const p = game.players.find((player) => player.id === socket.id);
+          if (p.state == 'reveal') {
+            // Sometimes reveal is confirmed twice??
+            console.warn('Player double reveal confirmed?');
+            break;
+          }
+
+          p.state = 'reveal';
 
           // Once all players have revealed map
           if (game.players.every((player) => player.state === 'reveal')) {
-            // FIXME: I shouldn't be handling this like this
-            if (randomCitiesPromise == null) {
-              console.error('Something went wrong');
-            }
+            console.log('All players reached reveal state', game.players);
 
-            const [start, end, cities] = await randomCitiesPromise;
+            // This is slower but more elegant
+            const [start, end, cities] = await readFile('data/mapList.json')
+              .then((res) => JSON.parse(res.toString()))
+              .then((data) => data.find((m) => m.webPath === game.settings.map))
+              .then((map) => getRandomCities(map));
+
             io.to(gameId).emit(
               'prompt-cities',
               JSON.stringify({ start, end, cities })
             );
+
+            // Initiate the game state
+            io.to(gameId).emit('state', 'game');
           }
           break;
       }
+    });
+
+    socket.on('city-entered', (msg) => {
+      const city = JSON.parse(msg);
+      console.log(city);
+      socket.broadcast.emit(
+        'city-entered',
+        JSON.stringify({ player: socket.id, city })
+      );
     });
 
     console.log('new player joined', socket.id);
@@ -96,13 +114,6 @@ io.on('connection', (socket) => {
 
     socket.on('start-game', (msg) => {
       io.to(gameId).emit('state', 'starting');
-
-      // Fetch the
-      randomCitiesPromise = readFile('data/mapList.json')
-        .then((res) => JSON.parse(res.toString()))
-        .then((data) => data.find((m) => m.webPath === game.settings.map))
-        .then((map) => getRandomCities(map));
-
       // Let the cities load and player get ready and then reveal with city targets
       setTimeout(async () => {
         io.to(gameId).emit('state', 'reveal');
