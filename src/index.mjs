@@ -3,11 +3,11 @@ import http from 'http';
 import { Server } from 'socket.io';
 import { getRandomCities } from './random.mjs';
 import { readFile } from 'fs/promises';
+import { createGame } from './game.mjs';
 
 const port = 23177;
 
-let nextGameId = 1;
-const games = {};
+const games = [];
 
 const app = express();
 const server = http.createServer(app);
@@ -27,40 +27,11 @@ app.use((req, res, next) => {
   next();
 });
 
-io.on('connection', (socket) => {
-  socket.on('join-game', (msg) => {
-    const gameId = msg;
-
-    if (!(gameId in games)) {
-      io.to(socket.id).emit('state', 'invalid');
-    }
-
-    const game = games[gameId];
-
-    socket.join(gameId);
-    game.players.push({
-      id: socket.id,
-      name: `Player ${game.nextPlayerId}`,
-      state: 'lobby',
-    });
-
-    game.nextPlayerId++;
-
-    io.to(gameId).emit('players', JSON.stringify(game.players));
-    io.to(socket.id).emit('settings', JSON.stringify(game.settings));
-    io.to(socket.id).emit('state', 'lobby');
-
-    socket.on('state-ack', async (state) => {
-      console.log(state, 'acknowledgement');
-      switch (state) {
-        case 'lobby':
-          io.to(socket.id).emit('new-leader', game.players[0].id);
-          break;
-
+/*
         // When all players have had their maps revealed then send the cities
-        case 'reveal':
+        case 'reveal': {
           const p = game.players.find((player) => player.id === socket.id);
-          if (p.state == 'reveal') {
+          if (p.state === 'reveal') {
             // Sometimes reveal is confirmed twice??
             console.warn('Player double reveal confirmed?');
             break;
@@ -84,10 +55,36 @@ io.on('connection', (socket) => {
             );
 
             // Initiate the game state
+            game.state = 'game';
             io.to(gameId).emit('state', 'game');
           }
           break;
+        }
+        case 'won': {
+          const p = game.players.find((player) => player.id === socket.id);
+          if (p.state === 'won') {
+            // Sometimes reveal is confirmed twice??
+            console.warn('Player double won confirmed?');
+            break;
+          }
+
+          p.state = 'won';
+
+          // Once all players have revealed map
+          if (game.players.every((player) => player.state === 'won')) {
+            console.log('All players reached won state', game.players);
+
+            io.to(gameId).emit('allow-continue');
+          }
+          break;
+        }
       }
+    });
+
+    socket.on('see-results', () => {
+      // Initiate the results state
+      game.state = 'results';
+      io.to(gameId).emit('state', 'results');
     });
 
     socket.on('city-entered', (msg) => {
@@ -97,6 +94,25 @@ io.on('connection', (socket) => {
         'city-entered',
         JSON.stringify({ player: socket.id, city })
       );
+    });
+
+    socket.on('player-won', () => {
+      socket.broadcast.emit('player-won', socket.id);
+    });
+
+    socket.on('final-distance', (distance) => {
+      socket.broadcast.emit(
+        'final-distance',
+        JSON.stringify({
+          distance: +distance,
+          player: socket.id,
+        })
+      );
+    });
+
+    socket.on('see-results', () => {
+      game.state = 'results';
+      io.to(gameId).emit('state', 'results');
     });
 
     console.log('new player joined', socket.id);
@@ -113,9 +129,11 @@ io.on('connection', (socket) => {
     });
 
     socket.on('start-game', (msg) => {
+      game.state = 'starting';
       io.to(gameId).emit('state', 'starting');
       // Let the cities load and player get ready and then reveal with city targets
       setTimeout(async () => {
+        game.state = 'reveal';
         io.to(gameId).emit('state', 'reveal');
       }, 3000);
     });
@@ -150,29 +168,14 @@ io.on('connection', (socket) => {
 
   console.log('connected', socket.id);
 });
+*/
 
 app.post('/host-game', (req, res) => {
-  games[nextGameId] = {
-    players: [],
-    nextPlayerId: 1,
-    settings: {
-      map: 'europe',
-      difficulty: 'normal',
-    },
-    data: {
-      start: null,
-      end: null,
-    },
-    state: 'start',
-  };
+  const game = createGame(io);
 
-  const out = {
-    id: nextGameId,
-  };
+  games.push(game);
 
-  nextGameId++;
-
-  res.send(JSON.stringify(out));
+  res.send(JSON.stringify({ id: game.id }));
 });
 
 server.listen(port, () => {

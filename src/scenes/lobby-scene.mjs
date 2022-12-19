@@ -4,18 +4,42 @@ import { simplifyPlayers } from '../util.mjs';
 /**
  * @typedef {object} GameContext
  * @property {*} data
+ * @property {number} gameId
+ * @property {(scene: *) => void} newScene
  */
 
 export const lobbyScene = {
   /**
    *
    * @param {GameContext} context
-   * @param {string} msg
+   * @param {Socket} socket
    */
-  update(context, socket, msg) {
-    const changes = JSON.parse(msg);
-
+  load(context, socket) {
     const { data } = context;
+
+    context.data.open = true;
+
+    // Inform of new scene
+    socket.emit('scene', 'lobby');
+
+    // Inform the other players of a new player, and inform the new player of all the state
+    socket.broadcast.emit('update', { players: simplifyPlayers(data.players) });
+    socket.emit('update', {
+      players: simplifyPlayers(data.players),
+      settings: data.settings,
+    });
+  },
+
+  /**
+   *
+   * @param {GameContext} context
+   * @param {Socket} socket
+   * @param {*} changes
+   */
+  update(context, socket, changes) {
+    const { data } = context;
+
+    console.log(changes);
 
     // These are what are allowed to be changed
     const aspects = {
@@ -25,16 +49,16 @@ export const lobbyScene = {
           data.players[socket.id][field] = changes.player[field];
         },
         result() {
-          return simplifyPlayers(data.players);
+          return { players: simplifyPlayers(data.players) };
         },
       },
       settings: {
         allowed: ['map', 'difficulty'],
         update(data, changes, field) {
-          data.players[socket.id][field] = changes.player[field];
+          data.settings[field] = changes.settings[field];
         },
         result() {
-          return data.settings;
+          return { settings: data.settings };
         },
       },
     };
@@ -50,25 +74,40 @@ export const lobbyScene = {
     const response = Object.entries(aspects)
       .map(([aspect, info]) => {
         if (aspect in changes) {
-          info.allowed.reduce((updated, field) => {
-            if (field in changes[aspect]) {
-              info.update(data, changes, field);
-              return true;
-            }
-            return updated;
-          })
-            ? [aspect, info.result()]
-            : undefined;
+          return (
+            info.allowed.reduce((updated, field) => {
+              if (field in changes[aspect]) {
+                info.update(data, changes, field);
+                return true;
+              }
+              return updated;
+            }, false) && info.result()
+          );
         }
       })
       .filter((result) => result !== undefined)
-      .reduce(
-        (response, [aspect, result]) => ({ ...response, [aspect]: result }),
-        {}
-      );
+      .reduce((response, result) => ({ ...response, ...result }), {});
 
     if (Object.keys(response).length > 0) {
-      socket.broadcast.emit('update', JSON.stringify(response));
+      socket.broadcast.emit('update', response);
+      console.log(response);
     }
+  },
+  /**
+   *
+   * @param {GameContext} context
+   * @param {Socket} socket
+   * @param {string} msg
+   */
+  start(context, socket, msg) {
+    // Must ensure was started by leader
+    if (!context.data.players[socket.id].isLeader) {
+      return;
+    }
+
+    // Close game to new players wanting to join
+    context.data.open = false;
+
+    socket.broadcast.emit('start');
   },
 };

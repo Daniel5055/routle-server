@@ -11,7 +11,7 @@ gsj -->|else| gip[Game in Progress]
 el --> bpl
 bpl --> ggs
 ggs --> gil
-gil --> |Leader| il 
+gil --> |Leader| il
 gil --> |Else| wls
 
 cn1 --> wls
