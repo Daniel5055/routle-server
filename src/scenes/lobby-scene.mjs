@@ -1,5 +1,6 @@
 import { Socket } from 'socket.io';
 import { simplifyPlayers } from '../util.mjs';
+import { gamScene } from './game-scene.mjs';
 
 /**
  * @typedef {object} GameContext
@@ -109,5 +110,7 @@ export const lobbyScene = {
     context.data.open = false;
 
     socket.broadcast.emit('start');
+
+    setTimeout(() => context.newScene(gamScene));
   },
 };

@@ -17,9 +17,8 @@ class Game {
   #data = {
     players: {},
     settings: defaultSettings,
-    start: null,
-    end: null,
     open: true,
+    expectedPrompt: null,
   };
 
   #scene;
@@ -76,6 +75,7 @@ class Game {
       socket: playerSocket,
       name: `Player ${this.#nextPlayerId++}`,
       isLeader: this.playerCount === 0,
+      state: 'idle',
     };
 
     this.#data.players[playerSocket.id] = player;
