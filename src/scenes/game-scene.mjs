@@ -73,4 +73,7 @@ export const gamScene = {
       setTimeout(() => emitToAll('countdown', 0), 3000);
     }
   },
+  city(context, socket, city) {
+    socket.broadcast.emit('city', { player: socket.id, city });
+  },
 };
