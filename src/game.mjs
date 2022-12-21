@@ -107,7 +107,7 @@ class Game {
     return this.#data.players[id];
   }
 
-  loadScene(scene) {
+  loadScene = (scene) => {
     // Unload old scene from players
     Object.values(this.#data.players).forEach((player) =>
       this.#unloadPlayerScene(player)
@@ -119,7 +119,7 @@ class Game {
     Object.values(this.#data.players).forEach((player) =>
       this.#loadPlayerScene(player)
     );
-  }
+  };
 
   #loadPlayerScene(player) {
     const context = {
@@ -142,7 +142,7 @@ class Game {
 
     Object.keys(this.#scene)
       .filter((event) => !exemptSceneEvents.includes(event))
-      .forEach((event) => player.socket.off(event));
+      .forEach((event) => player.socket.removeAllListeners(event));
   }
 }
 

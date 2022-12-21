@@ -27,7 +27,7 @@ export const gamScene = {
 
     // Get the data for the chosen map
     const mapDataList = JSON.parse(
-      (await fs.readFile('/data/mapList.json')).toString()
+      (await fs.readFile('data/mapList.json')).toString()
     );
 
     const mapData = mapDataList.find(
@@ -43,11 +43,20 @@ export const gamScene = {
    * @param {Socket} socket
    */
   async ready(context, socket) {
+    // Sometimes this duplicates?
+    if (context.data.players[socket.id].state === 'ready') {
+      return;
+    }
+
     context.data.players[socket.id].state = 'ready';
 
     // If all are ready
-    if (context.data.players.every((player) => (player.state = 'ready'))) {
-      const prompt = await context.data.expectedPrompt;
+    if (
+      Object.values(context.data.players).every(
+        (player) => player.state === 'ready'
+      )
+    ) {
+      const [start, end, cities] = await context.data.expectedPrompt;
 
       const emitToAll = (event, message) => {
         socket.emit(event, message);
@@ -55,7 +64,7 @@ export const gamScene = {
       };
 
       // Inform all of prompt
-      emitToAll('prompt', prompt);
+      emitToAll('prompt', { start, end, cities });
 
       // Begin countdown
       setTimeout(() => emitToAll('countdown', 3), 0);

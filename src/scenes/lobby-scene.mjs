@@ -40,8 +40,6 @@ export const lobbyScene = {
   update(context, socket, changes) {
     const { data } = context;
 
-    console.log(changes);
-
     // These are what are allowed to be changed
     const aspects = {
       player: {
@@ -91,7 +89,6 @@ export const lobbyScene = {
 
     if (Object.keys(response).length > 0) {
       socket.broadcast.emit('update', response);
-      console.log(response);
     }
   },
   /**
@@ -111,6 +108,6 @@ export const lobbyScene = {
 
     socket.broadcast.emit('start');
 
-    setTimeout(() => context.newScene(gamScene));
+    setTimeout(() => context.newScene(gamScene), 3000);
   },
 };
