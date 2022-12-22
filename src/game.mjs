@@ -56,7 +56,6 @@ class Game {
         this.#removePlayer(socket);
         if (Object.keys(this.#data.players).length === 0) {
           const nsp = socketServer.of(`/${this.id}`);
-          nsp.local.disconnectSockets();
           nsp.removeAllListeners();
           socketServer._nsps.delete(`/${this.id}`);
           console.log(socket.id, 'game closed');
