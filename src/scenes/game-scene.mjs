@@ -1,40 +1,51 @@
 import { getRandomCities } from '../random.mjs';
 import fs from 'fs/promises';
+import { simplifyPlayers } from '../util.mjs';
+import { Namespace } from 'socket.io';
 
 /**
  * @typedef {object} GameContext
  * @property {*} data
  * @property {number} gameId
  * @property {(scene: *) => void} newScene
+ * @property {Namespace} namespace
  */
 
 export const gamScene = {
   /**
    *
    * @param {GameContext} context
-   * @param {Socket} socket
    */
-  async load(context, socket) {
+  async load(context) {
     context.data.open = false;
 
-    // Inform of new scene
-    socket.emit('scene', 'game');
-
     // Change all players state to loading
-    Object.values(context.data.players).forEach((player) => {
-      player.state = 'loading';
+    Object.values(context.data.players).forEach(
+      (player) => (player.state = 'loading')
+    );
+
+    // Inform all players of the new player states
+    context.namespace.emit('update', {
+      players: simplifyPlayers(context.data.players),
     });
 
     // Get the data for the chosen map
     const mapDataList = JSON.parse(
       (await fs.readFile('data/mapList.json')).toString()
     );
-
     const mapData = mapDataList.find(
       (data) => data.webPath === context.data.settings.map
     );
-
     context.data.expectedPrompt = getRandomCities(mapData);
+  },
+  /**
+   *
+   * @param {GameContext} context
+   * @param {Socket} socket
+   */
+  async loadEach(context, socket) {
+    // Inform of new scene
+    socket.emit('scene', 'game');
   },
 
   /**
@@ -49,6 +60,9 @@ export const gamScene = {
     }
 
     context.data.players[socket.id].state = 'ready';
+    context.namespace.emit('update', {
+      players: simplifyPlayers(context.data.players),
+    });
 
     // If all are ready
     if (
@@ -75,5 +89,11 @@ export const gamScene = {
   },
   city(context, socket, city) {
     socket.broadcast.emit('city', { player: socket.id, city });
+  },
+  win(context, socket) {
+    context.data.players[socket.id].state = 'won';
+    context.namespace.emit('update', {
+      players: simplifyPlayers(context.data.players),
+    });
   },
 };

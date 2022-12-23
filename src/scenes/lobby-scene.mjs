@@ -1,4 +1,4 @@
-import { Socket } from 'socket.io';
+import { Namespace, Socket } from 'socket.io';
 import { simplifyPlayers } from '../util.mjs';
 import { gamScene } from './game-scene.mjs';
 
@@ -7,18 +7,24 @@ import { gamScene } from './game-scene.mjs';
  * @property {*} data
  * @property {number} gameId
  * @property {(scene: *) => void} newScene
+ * @property {Namespace} namespace
  */
 
 export const lobbyScene = {
   /**
    *
    * @param {GameContext} context
+   */
+  load(context) {
+    context.data.open = true;
+  },
+  /**
+   *
+   * @param {GameContext} context
    * @param {Socket} socket
    */
-  load(context, socket) {
+  loadEach(context, socket) {
     const { data } = context;
-
-    context.data.open = true;
 
     // Inform of new scene
     socket.emit('scene', 'lobby');
@@ -30,7 +36,6 @@ export const lobbyScene = {
       settings: data.settings,
     });
   },
-
   /**
    *
    * @param {GameContext} context

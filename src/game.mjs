@@ -9,7 +9,7 @@ const defaultSettings = {
   difficulty: 'normal',
 };
 
-const exemptSceneEvents = ['load', 'unload'];
+const exemptSceneEvents = ['load', 'loadEach', 'unloadEach', 'unload'];
 
 class Game {
   #nextPlayerId = 1;
@@ -25,6 +25,8 @@ class Game {
 
   id;
 
+  #namespaceSocket;
+
   get playerCount() {
     return Object.keys(this.#data.players).length;
   }
@@ -36,13 +38,16 @@ class Game {
   constructor(socketServer) {
     this.id = nextGameId++;
     this.#scene = lobbyScene;
+    this.#namespaceSocket = socketServer.of(`/${this.id}`);
 
-    socketServer.of(`/${this.id}`).on('connection', (socket) => {
+    console.log('Game created at', this.#namespaceSocket.name);
+
+    this.#namespaceSocket.on('connection', (socket) => {
       console.log(socket.id, 'connected');
 
       // Players can only join when game is open
       if (!this.#data.open) {
-        socket.to(socket.id).emit('closed');
+        socket.emit('closed');
         socket.disconnect();
         console.log(socket.id, 'disconnected (closed server)');
         return;
@@ -55,9 +60,8 @@ class Game {
         console.log(socket.id, 'disconnected');
         this.#removePlayer(socket);
         if (Object.keys(this.#data.players).length === 0) {
-          const nsp = socketServer.of(`/${this.id}`);
-          nsp.removeAllListeners();
-          socketServer._nsps.delete(`/${this.id}`);
+          this.#namespaceSocket.removeAllListeners();
+          socketServer._nsps.delete(this.#namespaceSocket.name);
           console.log(socket.id, 'game closed');
         }
       });
@@ -107,12 +111,21 @@ class Game {
   }
 
   loadScene = (scene) => {
+    const context = {
+      data: this.#data,
+      gameId: this.id,
+      newScene: this.loadScene,
+      namespace: this.#namespaceSocket,
+    };
+
     // Unload old scene from players
     Object.values(this.#data.players).forEach((player) =>
       this.#unloadPlayerScene(player)
     );
 
+    this.#scene.unload?.(context);
     this.#scene = scene;
+    this.#scene.load?.(context);
 
     // Load new scene for players
     Object.values(this.#data.players).forEach((player) =>
@@ -125,9 +138,10 @@ class Game {
       data: this.#data,
       gameId: this.id,
       newScene: this.loadScene,
+      namespace: this.#namespaceSocket,
     };
 
-    this.#scene.load?.(context, player.socket);
+    this.#scene.loadEach?.(context, player.socket);
 
     Object.entries(this.#scene)
       .filter(([event, _]) => !exemptSceneEvents.includes(event))
@@ -137,7 +151,7 @@ class Game {
   }
 
   #unloadPlayerScene(player) {
-    this.#scene.unload?.(context, player.socket);
+    this.#scene.unloadEach?.(context, player.socket);
 
     Object.keys(this.#scene)
       .filter((event) => !exemptSceneEvents.includes(event))
