@@ -1,4 +1,5 @@
 import { Server, Socket } from 'socket.io';
+import { colorScheme, nextFreeColor } from './color.mjs';
 import { lobbyScene } from './scenes/lobby-scene.mjs';
 import { simplifyPlayers } from './util.mjs';
 
@@ -62,7 +63,7 @@ class Game {
         if (Object.keys(this.#data.players).length === 0) {
           this.#namespaceSocket.removeAllListeners();
           socketServer._nsps.delete(this.#namespaceSocket.name);
-          console.log(socket.id, 'game closed');
+          console.log('Game closed at', this.#namespaceSocket.name);
         }
       });
     });
@@ -76,10 +77,13 @@ class Game {
     // TODO: Replace isLeader with enum to allow expanding roles
     const player = {
       socket: playerSocket,
-      name: `Player ${this.#nextPlayerId++}`,
+      name: `Player ${this.#nextPlayerId}`,
       isLeader: this.playerCount === 0,
       state: 'idle',
+      color: nextFreeColor(this.#data.players, null),
     };
+
+    this.#nextPlayerId++;
 
     this.#data.players[playerSocket.id] = player;
 

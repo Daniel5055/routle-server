@@ -1,4 +1,5 @@
 import { Namespace, Socket } from 'socket.io';
+import { colorScheme, nextFreeColor } from '../color.mjs';
 import { simplifyPlayers } from '../util.mjs';
 import { gamScene } from './game-scene.mjs';
 
@@ -114,5 +115,16 @@ export const lobbyScene = {
     socket.broadcast.emit('start');
 
     setTimeout(() => context.newScene(gamScene), 3000);
+  },
+
+  color(context, socket, msg) {
+    context.data.players[socket.id].color = nextFreeColor(
+      context.data.players,
+      socket.id
+    );
+
+    context.namespace.emit('update', {
+      players: simplifyPlayers(context.data.players),
+    });
   },
 };
