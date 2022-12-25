@@ -2,6 +2,7 @@ import { getRandomCities } from '../random.mjs';
 import fs from 'fs/promises';
 import { simplifyPlayers } from '../util.mjs';
 import { Namespace } from 'socket.io';
+import { lobbyScene } from './lobby-scene.mjs';
 
 /**
  * @typedef {object} GameContext
@@ -11,7 +12,7 @@ import { Namespace } from 'socket.io';
  * @property {Namespace} namespace
  */
 
-export const gamScene = {
+export const gameScene = {
   /**
    *
    * @param {GameContext} context
@@ -113,4 +114,12 @@ export const gamScene = {
       context.namespace.emit('end');
     }
   },
+  continue(context, socket) {
+    // Must ensure was continued by leader
+    if (!context.data.players[socket.id].isLeader) {
+      return;
+    }
+
+    setTimeout(() => context.newScene(lobbyScene), 0);
+  }
 };

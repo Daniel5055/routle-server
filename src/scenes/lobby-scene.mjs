@@ -1,7 +1,7 @@
 import { Namespace, Socket } from 'socket.io';
 import { colorScheme, nextFreeColor } from '../color.mjs';
 import { simplifyPlayers } from '../util.mjs';
-import { gamScene } from './game-scene.mjs';
+import { gameScene } from './game-scene.mjs';
 
 /**
  * @typedef {object} GameContext
@@ -114,7 +114,7 @@ export const lobbyScene = {
 
     socket.broadcast.emit('start');
 
-    setTimeout(() => context.newScene(gamScene), 3000);
+    setTimeout(() => context.newScene(gameScene), 3000);
   },
 
   color(context, socket, msg) {
