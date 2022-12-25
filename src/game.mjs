@@ -15,6 +15,8 @@ const exemptSceneEvents = ['load', 'loadEach', 'unloadEach', 'unload'];
 class Game {
   #nextPlayerId = 1;
 
+  #maxPlayers = colorScheme.length;
+
   #data = {
     players: {},
     settings: defaultSettings,
@@ -52,6 +54,13 @@ class Game {
         socket.emit('closed');
         socket.disconnect();
         console.log(socket.id, 'disconnected (closed server)');
+        return;
+      }
+
+      if (!this.#data.open) {
+        socket.emit('full');
+        socket.disconnect();
+        console.log(socket.id, 'disconnected (full server)');
         return;
       }
 

@@ -121,5 +121,5 @@ export const gameScene = {
     }
 
     setTimeout(() => context.newScene(lobbyScene), 0);
-  }
+  },
 };

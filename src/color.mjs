@@ -1,12 +1,11 @@
 export const colorScheme = [
-  '#ebdbb2',
-  '#8ec07c',
-  '#d3869b',
-  '#83a598',
-  '#fabd2f',
-  '#b8bb26',
-  '#fb4934',
-  '#fe8019',
+  '#F94E4E', // red
+  '#F8C663', // beige
+  '#C3FA85', // pistachio
+  '#74FBD0', // teal
+  '#77A4F9', // blue
+  '#B06FF1', // magenta
+  '#F674D6', // pink
 ];
 
 export function nextFreeColor(players, playerId) {
