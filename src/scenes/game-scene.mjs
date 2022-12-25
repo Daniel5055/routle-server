@@ -72,19 +72,18 @@ export const gamScene = {
     ) {
       const [start, end, cities] = await context.data.expectedPrompt;
 
-      const emitToAll = (event, message) => {
-        socket.emit(event, message);
-        socket.broadcast.emit(event, message);
-      };
-
       // Inform all of prompt
-      emitToAll('prompt', { start, end, cities });
+      context.namespace.emit('prompt', { start, end, cities });
 
       // Begin countdown
-      setTimeout(() => emitToAll('countdown', 3), 0);
-      setTimeout(() => emitToAll('countdown', 2), 1000);
-      setTimeout(() => emitToAll('countdown', 1), 2000);
-      setTimeout(() => emitToAll('countdown', 0), 3000);
+      setTimeout(() => context.namespace.emit('countdown', 3), 0);
+      setTimeout(() => context.namespace.emit('countdown', 2), 1000);
+      setTimeout(() => context.namespace.emit('countdown', 1), 2000);
+      setTimeout(() => {
+        context.namespace.emit('countdown', 0);
+        // Now we start measuring time
+        context.data.startTime = Date.now();
+      }, 3000);
     }
   },
   city(context, socket, city) {
@@ -92,8 +91,26 @@ export const gamScene = {
   },
   win(context, socket) {
     context.data.players[socket.id].state = 'won';
+    context.data.players[socket.id].result =
+      Date.now() - context.data.startTime;
     context.namespace.emit('update', {
       players: simplifyPlayers(context.data.players),
     });
+
+    // If the first win
+    if (
+      Object.values(context.data.players).filter(
+        (player) => player.state === 'won'
+      ).length === 1
+    ) {
+      // Countdown for 30 seconds, before ending the game
+      setTimeout(() => context.namespace.emit('end'), 30000);
+    } else if (
+      Object.values(context.data.players).every(
+        (player) => player.state === 'won'
+      )
+    ) {
+      context.namespace.emit('end');
+    }
   },
 };

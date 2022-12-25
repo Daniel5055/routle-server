@@ -20,6 +20,7 @@ class Game {
     settings: defaultSettings,
     open: true,
     expectedPrompt: null,
+    startTime: null,
   };
 
   #scene;
@@ -80,6 +81,7 @@ class Game {
       name: `Player ${this.#nextPlayerId}`,
       isLeader: this.playerCount === 0,
       state: 'idle',
+      result: null,
       color: nextFreeColor(this.#data.players, null),
     };
 

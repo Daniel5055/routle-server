@@ -1,14 +1,11 @@
 import express from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
-import { getRandomCities } from './random.mjs';
-import { readFile } from 'fs/promises';
 import { createGame } from './game.mjs';
 
 const port = 23177;
 
-const games = [];
-
+// Creation of express and socket.io servers
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -27,11 +24,9 @@ app.use((req, res, next) => {
   next();
 });
 
+// Endpoint for creating new games
 app.post('/host-game', (req, res) => {
   const game = createGame(io);
-
-  games.push(game);
-
   res.send(JSON.stringify({ id: game.id }));
 });
 
